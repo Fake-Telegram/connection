@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 #include <string.h>
 #define MAX_BUF 1024
 
@@ -12,7 +13,7 @@
 int main(void) {
     int error_flag, 
         socket_fd, 
-        client_fd,
+//        client_fd,
         address_len;
 
     struct sockaddr_in server_address;

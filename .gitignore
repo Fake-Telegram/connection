@@ -1,0 +1,6 @@
+*.o
+*.out
+*.pdf
+client
+server
+simple-server.c

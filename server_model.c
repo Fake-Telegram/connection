@@ -5,10 +5,11 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 #define MAX_QUEUE 5
 #define MAX_BUF 1024
 
-int make_socket(int port)
+int make_socket(int port, char *address)
 {
     int socket_fd, error_flag;
     struct sockaddr_in sock_address;
@@ -20,7 +21,7 @@ int make_socket(int port)
     }
     sock_address.sin_family = AF_INET;
     sock_address.sin_port = htons(port);
-    sock_address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    sock_address.sin_addr.s_addr = inet_addr(address);
     //my_sockaddress.sin_addr.s_addr = INADDR_ANY;
     error_flag = bind(socket_fd, 
             (struct sockaddr *)&sock_address,
@@ -38,11 +39,19 @@ int main(void) {
         socket_fd, 
         client_fd,
         address_len,
-        sent_num;
+        sent_num,
+        port;
     struct sockaddr_in client_address;
-    char buffer[MAX_BUF];
+    char buffer[MAX_BUF], address[50];
+    FILE *parameters;
 
-    socket_fd = make_socket(7000);
+    parameters = fopen("parameters.txt", "r");
+    if (fscanf(parameters, "%d%s", &port, address) != 2) {
+        perror("Error in parameters.txt");
+        exit(errno);
+    }
+
+    socket_fd = make_socket(port, address);
     error_flag = listen(socket_fd, MAX_QUEUE);
     if (error_flag == -1) {
         perror("listen");
@@ -51,7 +60,7 @@ int main(void) {
     while (1) {
         client_fd = accept(socket_fd,
                 (struct sockaddr*)&client_address,
-                &address_len);
+                (socklen_t*)&address_len);
         if (client_fd == -1) {
             perror("accept");
             exit(errno);
