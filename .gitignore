@@ -3,5 +3,6 @@
 *.pdf
 client
 server
+examples/
 output.txt
 simple-server.c

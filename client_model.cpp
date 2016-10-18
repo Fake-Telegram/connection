@@ -1,25 +1,11 @@
-#include <stdio.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <errno.h>
-#include <netinet/in.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <string.h>
-#define MAX_BUF 1024
+#include "client.h"
 
-
-int main(void) {
-    int error_flag, 
-        socket_fd, 
-//        client_fd,
-        port,
-        address_len;
+Client:: Client() {
+    FILE *parameters;
+    int error_flag, port;
     char ip[50];
     struct sockaddr_in server_address;
-    char buffer[MAX_BUF];
-    FILE *parameters;
+    int address_len;
 
     parameters = fopen("client_parameters.txt", "r");
 
@@ -50,21 +36,27 @@ int main(void) {
         perror("connect");
         exit(errno);
     }
-    //strcpy(buffer, "Hello!\n\0");
-    //send(socket_fd, buffer, 8, 0);
-    //recv(socket_fd, buffer, MAX_BUF, 0);
-    //printf("%s", buffer);
-    while(scanf("%s", buffer)) {
-        error_flag = write(socket_fd, buffer, strlen(buffer) + 1);
-        if (error_flag == (-1)) {
-            perror("write");
-            exit(errno);
-        } else if (error_flag == 0) {
-            printf("Server has gone");
-            break;
-        }
-    }
+}    
+
+Client:: ~Client()
+{
+    printf("Goodbye\n");
     shutdown(socket_fd, 2);
     close(socket_fd);
-    return 0;
 }
+
+int Client:: send_message(char *buffer, int buf_len)
+{
+    int error_flag; 
+///!!!!  handler is needed
+    error_flag = write(socket_fd, buffer, buf_len);
+/*    if (error_flag == (-1)) {
+        perror("write");
+        exit(errno);
+    } else if (error_flag == 0) {
+        return (-1);
+    }*/
+    return error_flag;
+}
+
+
