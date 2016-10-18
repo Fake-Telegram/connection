@@ -3,4 +3,5 @@
 *.pdf
 client
 server
+output.txt
 simple-server.c
