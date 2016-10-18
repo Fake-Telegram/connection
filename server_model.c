@@ -101,6 +101,11 @@ int main(void) {
             fprintf(output, "%s : %d connected\n", 
                     inet_ntoa(client_address.sin_addr),
                     ntohs(client_address.sin_port));
+            error_flag = fflush(output);
+            if (error_flag) {
+                perror("flush");
+                exit(errno);
+            }
         }
         for (i = 0; i < num_fd; i++) {
             if (FD_ISSET(client_fds[i], &read_fds)) {
@@ -112,6 +117,11 @@ int main(void) {
                 }
                 if (num_ch == 0) {
                     fprintf(output, "%d gone\n", client_fds[i]);
+                    error_flag = fflush(output);
+                    if (error_flag) {
+                        perror("flush");
+                        exit(errno);
+                    }
                     FD_CLR(client_fds[i], &read_fds);
                     shutdown(client_fds[i], 2);
                     close(client_fds[i]);
@@ -122,10 +132,16 @@ int main(void) {
                 } else {
                     buffer[num_ch] = 0;
                     fprintf(output, "%d %s\n", client_fds[i], buffer);
+                    error_flag = fflush(output);
+                    if (error_flag) {
+                        perror("flush");
+                        exit(errno);
+                    }
                 }
             }
         }
-    } while (num_fd != 0);
+//    } while (num_fd != 0);
+    } while (1);
     for (i = 0; i < num_fd; i++) {
         close(client_fds[i]);
     }
