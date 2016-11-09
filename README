@@ -1,0 +1,4 @@
+You need to know fd of other client on server.
+You could see it in output.txt after connection.
+You can write like this: "5 Hello!", 
+if your partner has fd == 5.

@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/time.h>
-#define MAX_QUEUE 5
+#define MAX_QUEUE SOMAXCONN
 #define MAX_BUF 1024
 
 int make_socket(int port, char *address)
@@ -41,6 +41,29 @@ int make_socket(int port, char *address)
     return socket_fd;
 }
 
+int behave(int fd, char *buffer, int buf_len) 
+{
+    int error_flag;
+    int name;
+    error_flag = read(fd, buffer, buf_len);
+    if (error_flag == -1 || error_flag == 0) {
+        return error_flag;
+    }
+    error_flag = sscanf(buffer, "%d", &name);
+    if (error_flag != 1) {
+        error_flag = write(fd, "receiver is not mentioned\n", 30);
+        if (error_flag == -1) {
+            return -1;
+        }
+    } else {
+        error_flag = write(name, buffer, buf_len);
+        if (error_flag == -1) {
+            return error_flag;
+        }
+    }
+    return 1;
+}
+
 
 int main(void) {
     int error_flag, 
@@ -52,7 +75,7 @@ int main(void) {
         max_fd, 
         num_fd;
     struct sockaddr_in client_address;
-    char buffer[MAX_BUF], address[50];
+    char buffer[MAX_BUF + 1], address[50];
     FILE *parameters, *output;
     int client_fds[1000];
     fd_set read_fds;
@@ -98,9 +121,10 @@ int main(void) {
             }
             client_fds[num_fd] = client_fd;
             num_fd++;
-            fprintf(output, "%s : %d connected\n", 
+            fprintf(output, "%s : %d connected in %d\n", 
                     inet_ntoa(client_address.sin_addr),
-                    ntohs(client_address.sin_port));
+                    ntohs(client_address.sin_port),
+                    client_fd);
             error_flag = fflush(output);
             if (error_flag) {
                 perror("flush");
@@ -109,10 +133,10 @@ int main(void) {
         }
         for (i = 0; i < num_fd; i++) {
             if (FD_ISSET(client_fds[i], &read_fds)) {
-                num_ch = read(client_fds[i], buffer, 
-                        sizeof(buffer) - 1);
+                num_ch = behave(client_fds[i], buffer, 
+                        MAX_BUF);
                 if (num_ch == -1) {
-                    perror("read");
+                    perror("behave");
                     exit(errno);
                 }
                 if (num_ch == 0) {
