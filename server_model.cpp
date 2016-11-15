@@ -7,8 +7,13 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <vector>
+#include <list>
+#include <set>
 #define MAX_QUEUE SOMAXCONN
 #define MAX_BUF 1024
+
+using namespace std;
 
 int make_socket(int port, char *address)
 {
@@ -41,27 +46,63 @@ int make_socket(int port, char *address)
     return socket_fd;
 }
 
-int behave(int fd, char *buffer, int buf_len) 
+void close_client(set<int> &client_fds, int fd) {
+        set<int>::iterator it;
+
+        it = client_fds.find(fd);
+        shutdown(fd, 2);
+        close(fd);
+        client_fds.erase(it);
+        //say his friends, that he is gone
+}
+
+void behave(int fd, char *buffer, int buf_len, set<int> &client_fd) 
 {
     int error_flag;
     int name;
     error_flag = read(fd, buffer, buf_len);
-    if (error_flag == -1 || error_flag == 0) {
-        return error_flag;
+    if (error_flag == -1) {
+        throw ("read");
+        return;
+    }
+    if (error_flag == 0) {
+        close_client(client_fd, fd);
+        return;
     }
     error_flag = sscanf(buffer, "%d", &name);
     if (error_flag != 1) {
         error_flag = write(fd, "receiver is not mentioned\n", 30);
+        if (error_flag == 0) {
+            close_client(client_fd, fd);
+            return;
+        }
         if (error_flag == -1) {
-            return -1;
+            throw ("write");
         }
     } else {
-        error_flag = write(name, buffer, buf_len);
-        if (error_flag == -1) {
-            return error_flag;
+        //write message in data base
+        if (client_fd.find(name) != client_fd.end()) {
+            error_flag = write(name, buffer, buf_len);
+            if (error_flag == -1) {
+                throw("write");
+            }
+            if (error_flag == 0) {
+                close_client(client_fd, name);
+                return;
+            } 
+        } else {
+            return;
         }
+    } 
+    error_flag = write(fd, "sent\n", 30);
+    if (error_flag == 0) {
+        close_client(client_fd, fd);
+        return;
     }
-    return 1;
+    if (error_flag == -1) {
+        throw ("write");
+    }
+    return;
 }
 
 
@@ -70,14 +111,13 @@ int main(void) {
         listening_socket, 
         client_fd,
         address_len,
-        num_ch,
-        port, i, j, 
-        max_fd, 
-        num_fd;
+        port,
+        max_fd; 
     struct sockaddr_in client_address;
     char buffer[MAX_BUF + 1], address[50];
     FILE *parameters, *output;
-    int client_fds[1000];
+    set<int> client_fds;
+    set<int>::iterator s_it;
     fd_set read_fds;
 
     parameters = fopen("parameters.txt", "r");
@@ -94,20 +134,21 @@ int main(void) {
         perror("listen");
         exit(errno);
     }
-    num_fd = 0;
+try{
     do {
         max_fd = listening_socket;
         FD_ZERO(&read_fds);
         FD_SET(listening_socket, &read_fds);
-        for (i = 0; i < num_fd; i++) {
-            FD_SET(client_fds[i], &read_fds);
-            if (client_fds[i] > max_fd) {
-                max_fd = client_fds[i];
+        for (s_it = client_fds.begin();
+        s_it != client_fds.end(); s_it++) {
+            FD_SET(*s_it, &read_fds);
+            if (*s_it > max_fd) {
+                max_fd = *s_it;
             }
         }
         error_flag = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
         if (error_flag == -1) {
-            perror("select");
+            throw("select");
             exit(errno);
         }
         if  (FD_ISSET(listening_socket, &read_fds)) {
@@ -116,63 +157,31 @@ int main(void) {
                     (struct sockaddr*)&client_address,
                     (socklen_t*)&address_len);
             if (client_fd == -1) {
-                perror("accept");
-                exit(errno);
+                throw("accept");
             }
-            client_fds[num_fd] = client_fd;
-            num_fd++;
+            client_fds.insert(client_fd);
             fprintf(output, "%s : %d connected in %d\n", 
                     inet_ntoa(client_address.sin_addr),
                     ntohs(client_address.sin_port),
                     client_fd);
-            error_flag = fflush(output);
-            if (error_flag) {
-                perror("flush");
-                exit(errno);
+            fflush(output);
+        }
+        for (s_it = client_fds.begin(); 
+        s_it != client_fds.end(); s_it++) {
+            if (FD_ISSET(*s_it, &read_fds)) {
+                behave(*s_it, buffer, MAX_BUF, client_fds);
+                buffer[0] = 0;
             }
         }
-        for (i = 0; i < num_fd; i++) {
-            if (FD_ISSET(client_fds[i], &read_fds)) {
-                num_ch = behave(client_fds[i], buffer, 
-                        MAX_BUF);
-                if (num_ch == -1) {
-                    perror("behave");
-                    exit(errno);
-                }
-                if (num_ch == 0) {
-                    fprintf(output, "%d gone\n", client_fds[i]);
-                    error_flag = fflush(output);
-                    if (error_flag) {
-                        perror("flush");
-                        exit(errno);
-                    }
-                    FD_CLR(client_fds[i], &read_fds);
-                    shutdown(client_fds[i], 2);
-                    close(client_fds[i]);
-                    for (j = i + 1; j < num_fd; j++) {
-                        client_fds[j - 1] = client_fds[j];
-                    }
-                    num_fd--;
-                } else {
-                    buffer[num_ch] = 0;
-                    fprintf(output, "%d %s\n", client_fds[i], buffer);
-                    error_flag = fflush(output);
-                    if (error_flag) {
-                        perror("flush");
-                        exit(errno);
-                    }
-                }
-            }
-        }
-//    } while (num_fd != 0);
     } while (1);
-    for (i = 0; i < num_fd; i++) {
-        close(client_fds[i]);
+}   catch(const char* s) {
+        perror(s);
+    }
+    for (s_it = client_fds.begin(); 
+    s_it != client_fds.end(); s_it++) {
+        close(*s_it);
     }
     close (listening_socket);
     fclose(output);
     return 0;
 }
-        
-
-

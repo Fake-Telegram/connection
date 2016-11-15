@@ -16,7 +16,7 @@ client_model.o: client_model.cpp client_parameters.txt client.h
 client_main.o: client_main.cpp client.h
 	$(CC) $(CFLAGS) $<
 
-server_model.o: server_model.c parameters.txt
+server_model.o: server_model.cpp parameters.txt
 	$(CC) $(CFLAGS) $<
 
 clean:
