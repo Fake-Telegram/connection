@@ -140,6 +140,7 @@ int main(void) {
                 }
             }
         }
+//	printf("num_fd = %d\n", num_fd);
 //    } while (num_fd != 0);
     } while (1);
     for (i = 0; i < num_fd; i++) {
