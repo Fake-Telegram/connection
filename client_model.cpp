@@ -35,6 +35,8 @@ Client:: Client() {
     if (error_flag == -1) {
         perror("connect");
         exit(errno);
+    } else {
+        printf("connect\n");
     }
 }    
 
@@ -56,7 +58,23 @@ int Client:: send_message(char *buffer, int buf_len)
     } else if (error_flag == 0) {
         return (-1);
     }*/
+    buffer[0] = 0;
     return error_flag;
 }
 
-
+int Client:: get_message(char *buffer, int buf_len)
+{
+    int error_flag;
+    error_flag = read(socket_fd, buffer, buf_len);
+    if (error_flag == -1) {
+        perror("read");
+        exit(errno);
+    }
+    buffer[error_flag] = 0;
+    error_flag = fputs(buffer, stdout);
+    if (error_flag == EOF) {
+        return -1;
+    }
+    buffer[0] = 0;
+    return 1;
+}
